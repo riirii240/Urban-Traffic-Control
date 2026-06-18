@@ -1,0 +1,29 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Dépendances système
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ iproute2 iptables \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installer les dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le code source
+COPY . .
+
+# Générer les fichiers gRPC
+RUN python -m grpc_tools.protoc \
+    -I server/proto \
+    --python_out=server/proto \
+    --grpc_python_out=server/proto \
+    server/proto/federated.proto \
+    && sed -i 's/^import federated_pb2/from . import federated_pb2/' \
+       server/proto/federated_pb2_grpc.py
+
+# Créer le dossier pour MNIST
+RUN mkdir -p /data/mnist
+
+CMD ["python", "-m", "client.worker"]

@@ -1,0 +1,94 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────
+# Federated Learning — Docker Compose
+# Lancement : docker compose up --scale worker=5
+# Dashboard  : http://localhost:8501
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Redis : registry des workers ──────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: fl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - fl_network
+
+  # ── Serveur d'agrégation ───────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: fl-server
+    ports:
+      - "50051:50051"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - mnist_data:/data/mnist     # MNIST téléchargé une seule fois
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - fl_network
+    restart: on-failure
+
+  # ── Workers (scalables) ────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - WORKER_ID=${WORKER_ID:-0}
+      - SERVER_HOST=server
+      - SERVER_PORT=50051
+      - PYTHONUNBUFFERED=1
+      # Pannes :
+      - CRASH_PROBABILITY=${CRASH_PROBABILITY:-0.0}
+      - BYZANTINE_WORKERS=${BYZANTINE_WORKERS:-}
+    volumes:
+      - mnist_data:/data/mnist
+    depends_on:
+      - server
+    networks:
+      - fl_network
+    restart: on-failure
+    # Chaque worker reçoit un WORKER_ID unique via le script de lancement
+
+  # ── Dashboard Streamlit ────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: fl-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - SERVER_HOST=server
+      - SERVER_PORT=50051
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - server
+    networks:
+      - fl_network
+    restart: on-failure
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  redis_data:
+  mnist_data:
+
+# ── Réseau ────────────────────────────────────────────────────
+networks:
+  fl_network:
+    driver: bridge

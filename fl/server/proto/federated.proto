@@ -1,0 +1,62 @@
+syntax = "proto3";
+package federated;
+
+service FederatedService {
+  rpc Register(ClientInfo)          returns (Ack);
+  rpc GetGlobalModel(RoundRequest)  returns (ModelWeights);
+  rpc SubmitUpdate(LocalUpdate)     returns (Ack);
+  rpc GetTrainingStatus(Empty)      returns (TrainingStatus);
+}
+
+message ClientInfo {
+  string client_id   = 1;
+  int32  num_samples = 2;
+  string host        = 3;
+}
+
+message Ack {
+  bool   success = 1;
+  string message = 2;
+}
+
+message RoundRequest {
+  string client_id = 1;
+  int32  round_id  = 2;
+}
+
+message ModelWeights {
+  bytes  weights  = 1;
+  int32  round_id = 2;
+  string checksum = 3;
+}
+
+message LocalUpdate {
+  string client_id   = 1;
+  bytes  weights     = 2;
+  int32  round_id    = 3;
+  int32  num_samples = 4;
+  string checksum    = 5;
+  float  train_loss  = 6;
+  float  train_acc   = 7;
+}
+
+message TrainingStatus {
+  int32  current_round   = 1;
+  float  global_accuracy = 2;
+  float  global_loss     = 3;
+  int32  active_clients  = 4;
+  bool   is_training     = 5;
+  int32  total_rounds    = 6;
+  repeated ClientStatus clients = 7;
+}
+
+message ClientStatus {
+  string client_id     = 1;
+  bool   is_alive      = 2;
+  bool   has_responded = 3;
+  float  last_loss     = 4;
+  float  last_acc      = 5;
+  int32  num_samples   = 6;
+}
+
+message Empty {}

@@ -1,0 +1,36 @@
+server:
+  host: "0.0.0.0"
+  port: 50051
+  max_rounds: 20
+  min_clients: 2
+  fraction_fit: 0.6
+  round_timeout: 60
+
+training:
+  epochs: 3
+  batch_size: 32
+  learning_rate: 0.01
+
+model:
+  type: "mlp"
+  input_size: 784
+  hidden1: 128
+  hidden2: 64
+  num_classes: 10
+
+dataset:
+  name: "mnist"
+  num_workers: 5
+  iid: true
+  dirichlet_alpha: 0.5
+  val_split: 0.1
+
+redis:
+  host: "redis"
+  port: 6379
+
+fault:
+  crash_probability: 0.0
+  latency_min_ms: 0
+  latency_max_ms: 0
+  byzantine_workers: []

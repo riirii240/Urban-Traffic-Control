@@ -1,0 +1,28 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Générer les fichiers gRPC
+RUN python -m grpc_tools.protoc \
+    -I server/proto \
+    --python_out=server/proto \
+    --grpc_python_out=server/proto \
+    server/proto/federated.proto \
+    && sed -i 's/^import federated_pb2/from . import federated_pb2/' \
+       server/proto/federated_pb2_grpc.py
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "dashboard/app.py", \
+     "--server.port=8501", \
+     "--server.address=0.0.0.0", \
+     "--server.headless=true", \
+     "--browser.gatherUsageStats=false"]
